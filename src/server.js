@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { append, readAll, summarize } from './store.js';
+import { append, readAll, summarize, filterRecords, facets } from './store.js';
 import { parseOtlpMetrics, parseOtlpTraces } from './adapters/otlp.js';
 import { parseIngest } from './adapters/ingest.js';
 import { decodeMetricsRequest, decodeTraceRequest } from './otlp-proto.js';
@@ -116,10 +116,35 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && pathname === '/api/health') return json(res, 200, { ok: true });
-    if (req.method === 'GET' && pathname === '/api/summary') return json(res, 200, summarize());
+
+    if (req.method === 'GET' && pathname === '/api/summary') {
+      const opts = {
+        source: url.searchParams.get('source') || undefined,
+        model:  url.searchParams.get('model')  || undefined,
+        type:   url.searchParams.get('type')   || undefined,
+        from:   url.searchParams.get('from')   || undefined,
+        to:     url.searchParams.get('to')     || undefined,
+      };
+      const filtered = filterRecords(opts);
+      const result = summarize(filtered);
+      result.facets = facets(filtered);
+      return json(res, 200, result);
+    }
+
     if (req.method === 'GET' && pathname === '/api/records') {
-      const limit = Math.max(1, Math.min(5000, Number(url.searchParams.get('limit')) || 500));
-      return json(res, 200, readAll().slice(-limit));
+      const opts = {
+        source: url.searchParams.get('source') || undefined,
+        model:  url.searchParams.get('model')  || undefined,
+        type:   url.searchParams.get('type')   || undefined,
+        from:   url.searchParams.get('from')   || undefined,
+        to:     url.searchParams.get('to')     || undefined,
+      };
+      const limit  = Math.max(1, Math.min(5000, Number(url.searchParams.get('limit')) || 50));
+      const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
+      const all = filterRecords(opts);
+      const total = all.length;
+      const page = all.slice(offset, offset + limit).reverse();
+      return json(res, 200, { records: page, total, limit, offset });
     }
     if (req.method === 'GET') return serveStatic(res, pathname);
 
