@@ -248,6 +248,7 @@ function updateTimeButtons() {
 function buildMultiSelect(container, filterKey, options) {
   const selected = filterState[filterKey];
   const hasSelection = selected.length > 0;
+  console.log(`[filter] buildMultiSelect: key=${filterKey}, options=${options.length}, selected=${selected.length}`);
 
   const triggerText = hasSelection ? `${selected.length} đã chọn` : 'Tất cả';
   const isOpen = openDropdown === filterKey;
@@ -490,8 +491,12 @@ async function refresh() {
     bars(document.getElementById('by-model'), summary.byModel);
 
     if (summary.facets) {
+      console.log('[filter] API returned facets:', summary.facets);
       lastFacets = summary.facets;
-      if (!openDropdown) rebuildDropdowns();
+      if (!openDropdown) {
+        console.log('[filter] Rebuilding dropdowns');
+        rebuildDropdowns();
+      }
     }
 
     currentRecords = recordsRes.records || [];
