@@ -86,7 +86,7 @@
   .ms-option { display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; transition: background .1s; }
   .ms-option:hover { background: var(--line); }
   .ms-option input { accent-color: var(--accent); margin: 0; }
-  .ms-option label { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ms-option span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ms-toggle-all { padding: 6px 12px; font-size: 11px; color: var(--accent); cursor: pointer; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
   .ms-toggle-all:hover { text-decoration: underline; }
 
@@ -248,35 +248,26 @@ function updateTimeButtons() {
 function buildMultiSelect(container, filterKey, options) {
   const selected = filterState[filterKey];
   const hasSelection = selected.length > 0;
-  console.log(`[filter] buildMultiSelect: key=${filterKey}, options=${options.length}, selected=${selected.length}`);
+  // Keep selected values listed even if absent from current data, so they can be unchecked.
+  const all = [...new Set([...options, ...selected])].sort();
 
   const triggerText = hasSelection ? `${selected.length} đã chọn` : 'Tất cả';
   const isOpen = openDropdown === filterKey;
-
-  const optionsHtml = options.map(opt => `
-    <div class="ms-option">
-      <input type="checkbox" id="ms-${filterKey}-${opt}" ${selected.includes(opt) ? 'checked' : ''}>
-      <label for="ms-${filterKey}-${opt}" title="${esc(opt)}">${esc(opt)}</label>
-    </div>
-  `).join('');
-  console.log(`[filter] Generated ${optionsHtml.split('ms-option').length - 1} option elements for ${filterKey}`);
 
   container.innerHTML = `
     <div class="ms-trigger${isOpen ? ' open' : ''}${hasSelection ? ' has-selection' : ''}">${esc(triggerText)}</div>
     <div class="ms-dropdown${isOpen ? ' open' : ''}">
       <div class="ms-toggle-all">${hasSelection ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</div>
-      ${optionsHtml}
+      ${all.map(opt => `
+        <label class="ms-option" title="${esc(opt)}">
+          <input type="checkbox" data-val="${esc(opt)}" ${selected.includes(opt) ? 'checked' : ''}>
+          <span>${esc(opt)}</span>
+        </label>`).join('')}
     </div>
   `;
 
   container.querySelector('.ms-trigger').addEventListener('click', () => {
-    console.log(`[filter] Trigger clicked for ${filterKey}, openDropdown was ${openDropdown}`);
-    if (openDropdown === filterKey) {
-      openDropdown = null;
-    } else {
-      openDropdown = filterKey;
-    }
-    console.log(`[filter] openDropdown now ${openDropdown}`);
+    openDropdown = openDropdown === filterKey ? null : filterKey;
     rebuildDropdowns();
   });
 
@@ -292,19 +283,9 @@ function buildMultiSelect(container, filterKey, options) {
     refresh();
   });
 
-  const optionElements = container.querySelectorAll('.ms-option');
-  console.log(`[filter] Found ${optionElements.length} .ms-option elements for ${filterKey}`);
-  for (const opt of optionElements) {
-    const cb = opt.querySelector('input');
-    const val = cb.id.replace(`ms-${filterKey}-`, '');
-    console.log(`[filter] Attaching listener to option: ${val}`);
-    opt.addEventListener('click', (e) => {
-      if (e.target === cb) return;
-      cb.checked = !cb.checked;
-      cb.dispatchEvent(new Event('change'));
-    });
+  for (const cb of container.querySelectorAll('.ms-option input')) {
+    const val = cb.dataset.val;
     cb.addEventListener('change', () => {
-      console.log(`[filter] Option changed: ${val} = ${cb.checked}`);
       if (cb.checked) {
         if (!filterState[filterKey].includes(val)) filterState[filterKey].push(val);
       } else {
@@ -312,7 +293,7 @@ function buildMultiSelect(container, filterKey, options) {
       }
       currentPage = 0;
       syncToUrl();
-      renderChips();
+      rebuildDropdowns();
       refresh();
     });
   }
@@ -329,7 +310,9 @@ function rebuildDropdowns() {
 
 // Close dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  if (openDropdown && !e.target.closest('.multi-select')) {
+  // composedPath() is captured at dispatch, so it still works when the clicked node was re-rendered away.
+  const inside = e.composedPath().some(el => el.classList?.contains('multi-select'));
+  if (openDropdown && !inside) {
     openDropdown = null;
     rebuildDropdowns();
   }
@@ -500,12 +483,8 @@ async function refresh() {
     bars(document.getElementById('by-model'), summary.byModel);
 
     if (summary.facets) {
-      console.log('[filter] API returned facets:', summary.facets);
       lastFacets = summary.facets;
-      if (!openDropdown) {
-        console.log('[filter] Rebuilding dropdowns');
-        rebuildDropdowns();
-      }
+      if (!openDropdown) rebuildDropdowns();
     }
 
     currentRecords = recordsRes.records || [];

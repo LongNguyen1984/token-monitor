@@ -127,7 +127,7 @@ const server = http.createServer(async (req, res) => {
       };
       const filtered = filterRecords(opts);
       const result = summarize(filtered);
-      result.facets = facets(filtered);
+      result.facets = facets(opts);
       return json(res, 200, result);
     }
 
@@ -143,7 +143,8 @@ const server = http.createServer(async (req, res) => {
       const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
       const all = filterRecords(opts);
       const total = all.length;
-      const page = all.slice(offset, offset + limit).reverse();
+      // Newest first: page 0 is the last `limit` records.
+      const page = all.slice(Math.max(0, total - offset - limit), Math.max(0, total - offset)).reverse();
       return json(res, 200, { records: page, total, limit, offset });
     }
     if (req.method === 'GET') return serveStatic(res, pathname);

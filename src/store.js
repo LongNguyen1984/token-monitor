@@ -60,8 +60,7 @@ export function summarize(records = readAll()) {
 }
 
 /** Filter records by source, model, type (comma-separated), and time range. */
-export function filterRecords({ source, model, type, from, to } = {}) {
-  let records = readAll();
+export function filterRecords({ source, model, type, from, to } = {}, records = readAll()) {
   if (source) {
     const set = new Set(source.split(','));
     records = records.filter(r => set.has(r.source));
@@ -79,17 +78,20 @@ export function filterRecords({ source, model, type, from, to } = {}) {
   return records;
 }
 
-/** Extract distinct filterable values from records. */
-export function facets(records = readAll()) {
-  const sources = new Set();
-  const models = new Set();
-  const types = new Set();
-  for (const r of records) {
-    if (r.source) sources.add(r.source);
-    if (r.model) models.add(r.model);
-    if (r.type) types.add(r.type);
-  }
-  return { sources: [...sources].sort(), models: [...models].sort(), types: [...types].sort() };
+/**
+ * Distinct values per dimension. Each dimension ignores its own filter so
+ * multi-select stays possible (choosing one source doesn't hide the others).
+ */
+export function facets(opts = {}) {
+  const records = readAll();
+  const distinct = (field, key) => [...new Set(
+    filterRecords({ ...opts, [key]: undefined }, records).map(r => r[field]).filter(Boolean)
+  )].sort();
+  return {
+    sources: distinct('source', 'source'),
+    models: distinct('model', 'model'),
+    types: distinct('type', 'type'),
+  };
 }
 
 export { DATA_FILE, DATA_DIR };
