@@ -59,4 +59,37 @@ export function summarize(records = readAll()) {
   return { totals, bySource, byModel, byType };
 }
 
+/** Filter records by source, model, type (comma-separated), and time range. */
+export function filterRecords({ source, model, type, from, to } = {}) {
+  let records = readAll();
+  if (source) {
+    const set = new Set(source.split(','));
+    records = records.filter(r => set.has(r.source));
+  }
+  if (model) {
+    const set = new Set(model.split(','));
+    records = records.filter(r => set.has(r.model));
+  }
+  if (type) {
+    const set = new Set(type.split(','));
+    records = records.filter(r => set.has(r.type));
+  }
+  if (from) records = records.filter(r => r.ts >= from);
+  if (to) records = records.filter(r => r.ts < to);
+  return records;
+}
+
+/** Extract distinct filterable values from records. */
+export function facets(records = readAll()) {
+  const sources = new Set();
+  const models = new Set();
+  const types = new Set();
+  for (const r of records) {
+    if (r.source) sources.add(r.source);
+    if (r.model) models.add(r.model);
+    if (r.type) types.add(r.type);
+  }
+  return { sources: [...sources].sort(), models: [...models].sort(), types: [...types].sort() };
+}
+
 export { DATA_FILE, DATA_DIR };

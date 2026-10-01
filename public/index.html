@@ -8,10 +8,12 @@
   :root {
     --bg: #f7f7f5; --card: #ffffff; --fg: #1d1d1b; --muted: #6b6b66;
     --line: #e4e4df; --accent: #c2571a; --accent2: #2f6f8f;
+    --shadow: rgba(0,0,0,0.06);
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #161615; --card: #1f1f1d; --fg: #ececea; --muted: #9a9a94;
-            --line: #2e2e2b; --accent: #e07a3f; --accent2: #5fa3c4; }
+            --line: #2e2e2b; --accent: #e07a3f; --accent2: #5fa3c4;
+            --shadow: rgba(0,0,0,0.25); }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg);
@@ -22,7 +24,9 @@
   .status { color: var(--muted); font-size: 12px; }
   .status b { color: var(--accent2); font-weight: 600; }
   .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 20px 0; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+          transition: box-shadow .15s; }
+  .card:hover { box-shadow: 0 2px 8px var(--shadow); }
   .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
   .kpi .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
@@ -32,6 +36,7 @@
   .bar-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .bar-track { background: var(--line); height: 10px; border-radius: 5px; overflow: hidden; }
   .bar-fill { background: var(--accent); height: 100%; border-radius: 5px; transition: width .4s; }
+  .bar-fill:hover { filter: brightness(1.15); }
   .bar-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
   .empty { color: var(--muted); font-style: italic; }
   table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
@@ -41,6 +46,92 @@
   .table-wrap { overflow-x: auto; margin-top: 12px; }
   .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px;
           background: var(--line); }
+
+  /* Filter bar */
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin: 16px 0; padding: 16px; }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .filter-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+
+  /* Time presets */
+  .time-presets { display: flex; gap: 0; }
+  .time-presets button {
+    background: var(--card); border: 1px solid var(--line); color: var(--fg);
+    padding: 5px 12px; font-size: 12px; cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .time-presets button:first-child { border-radius: 6px 0 0 6px; }
+  .time-presets button:last-child { border-radius: 0 6px 6px 0; }
+  .time-presets button + button { border-left: none; }
+  .time-presets button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .time-presets button:hover:not(.active) { background: var(--line); }
+
+  /* Multi-select */
+  .multi-select { position: relative; }
+  .ms-trigger {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 28px 5px 10px; font-size: 12px; cursor: pointer; min-width: 120px;
+    color: var(--fg); position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: border-color .15s;
+  }
+  .ms-trigger::after { content: '\25BC'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 8px; color: var(--muted); }
+  .ms-trigger:hover, .ms-trigger.open { border-color: var(--accent); }
+  .ms-trigger.has-selection { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
+  .ms-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 100;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 4px 16px var(--shadow); padding: 6px 0;
+    min-width: 180px; max-height: 240px; overflow-y: auto; display: none;
+  }
+  .ms-dropdown.open { display: block; }
+  .ms-option { display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; transition: background .1s; }
+  .ms-option:hover { background: var(--line); }
+  .ms-option input { accent-color: var(--accent); margin: 0; }
+  .ms-option label { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ms-toggle-all { padding: 6px 12px; font-size: 11px; color: var(--accent); cursor: pointer; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .ms-toggle-all:hover { text-decoration: underline; }
+
+  /* Active filter chips */
+  .active-filters { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin-top: 4px; }
+  .active-filters:empty { display: none; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px 3px 10px; background: var(--accent); color: #fff;
+    border-radius: 999px; font-size: 11px; cursor: default;
+    animation: chipIn .2s ease-out;
+  }
+  .filter-chip button { background: none; border: none; color: inherit; cursor: pointer; padding: 0 2px; font-size: 13px; opacity: .7; transition: opacity .15s; }
+  .filter-chip button:hover { opacity: 1; }
+  .clear-all {
+    font-size: 11px; color: var(--muted); cursor: pointer; padding: 3px 8px;
+    border: 1px dashed var(--line); border-radius: 999px; background: none;
+    transition: color .15s, border-color .15s;
+  }
+  .clear-all:hover { color: var(--accent); border-color: var(--accent); }
+  @keyframes chipIn { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* Sortable columns */
+  th[data-sort] { cursor: pointer; user-select: none; transition: color .15s; }
+  th[data-sort]:hover { color: var(--accent); }
+  .sort-arrow { font-size: 10px; margin-left: 4px; opacity: .3; }
+  th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+
+  /* Pagination */
+  .pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 0; font-size: 12px; color: var(--muted); }
+  .pagination button {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--fg);
+    transition: background .15s, border-color .15s;
+  }
+  .pagination button:hover:not(:disabled) { background: var(--line); border-color: var(--muted); }
+  .pagination button:disabled { opacity: .4; cursor: not-allowed; }
+  .pagination .page-btns { display: flex; gap: 6px; }
+  .record-count { font-size: 12px; font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; }
+
+  @media (max-width: 600px) {
+    .filter-bar { gap: 12px; }
+    .time-presets { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .ms-dropdown { min-width: 140px; }
+  }
 </style>
 </head>
 <body>
@@ -49,6 +140,33 @@
     <h1>AI Token Monitor</h1>
     <div class="status">Cập nhật: <b id="updated">—</b> · tự làm mới mỗi 5s</div>
   </header>
+
+  <section class="filter-bar card">
+    <div class="filter-group">
+      <span class="filter-label">Khoảng thời gian</span>
+      <div class="time-presets" id="time-presets">
+        <button data-range="1h">1 giờ</button>
+        <button data-range="6h">6 giờ</button>
+        <button data-range="24h">24 giờ</button>
+        <button data-range="7d">7 ngày</button>
+        <button data-range="30d">30 ngày</button>
+        <button data-range="all" class="active">Tất cả</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Nguồn</span>
+      <div class="multi-select" id="filter-source" data-filter="source"></div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Model</span>
+      <div class="multi-select" id="filter-model" data-filter="model"></div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Loại</span>
+      <div class="multi-select" id="filter-type" data-filter="type"></div>
+    </div>
+    <div class="active-filters" id="active-filters"></div>
+  </section>
 
   <section class="kpis">
     <div class="card kpi"><div class="label">Tổng token</div><div class="value" id="k-tokens">0</div></div>
@@ -63,11 +181,19 @@
   </section>
 
   <section class="card table-wrap">
-    <h2>Bản ghi gần nhất</h2>
+    <h2>Bản ghi <span class="record-count" id="record-count"></span></h2>
     <table>
-      <thead><tr><th>Thời gian</th><th>Nguồn</th><th>Model</th><th>Loại</th><th class="n">Token</th><th class="n">USD</th></tr></thead>
+      <thead><tr>
+        <th data-sort="ts">Thời gian <span class="sort-arrow"></span></th>
+        <th data-sort="source">Nguồn <span class="sort-arrow"></span></th>
+        <th data-sort="model">Model <span class="sort-arrow"></span></th>
+        <th data-sort="type">Loại <span class="sort-arrow"></span></th>
+        <th data-sort="tokens" class="n">Token <span class="sort-arrow"></span></th>
+        <th data-sort="costUsd" class="n">USD <span class="sort-arrow"></span></th>
+      </tr></thead>
       <tbody id="rows"><tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr></tbody>
     </table>
+    <div class="pagination" id="pagination"></div>
   </section>
 </main>
 
@@ -75,6 +201,238 @@
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+const DURATIONS = { '1h': 3600e3, '6h': 21600e3, '24h': 86400e3, '7d': 604800e3, '30d': 2592e6 };
+const PAGE_SIZE = 50;
+
+const filterState = { range: 'all', source: [], model: [], type: [] };
+let currentPage = 0;
+let sortCol = null;
+let sortDir = 'desc';
+let openDropdown = null;
+
+function syncFromUrl() {
+  const p = new URLSearchParams(location.search);
+  filterState.range = p.get('range') || 'all';
+  filterState.source = p.get('source')?.split(',').filter(Boolean) || [];
+  filterState.model = p.get('model')?.split(',').filter(Boolean) || [];
+  filterState.type = p.get('type')?.split(',').filter(Boolean) || [];
+}
+
+function syncToUrl() {
+  const p = new URLSearchParams();
+  if (filterState.range !== 'all') p.set('range', filterState.range);
+  if (filterState.source.length) p.set('source', filterState.source.join(','));
+  if (filterState.model.length) p.set('model', filterState.model.join(','));
+  if (filterState.type.length) p.set('type', filterState.type.join(','));
+  history.replaceState(null, '', p.toString() ? '?' + p : location.pathname);
+}
+
+// Time preset buttons
+document.getElementById('time-presets').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-range]');
+  if (!btn) return;
+  filterState.range = btn.dataset.range;
+  currentPage = 0;
+  syncToUrl();
+  updateTimeButtons();
+  refresh();
+});
+
+function updateTimeButtons() {
+  for (const btn of document.querySelectorAll('#time-presets button')) {
+    btn.classList.toggle('active', btn.dataset.range === filterState.range);
+  }
+}
+
+// Multi-select dropdowns
+function buildMultiSelect(container, filterKey, options) {
+  const selected = filterState[filterKey];
+  const hasSelection = selected.length > 0;
+
+  const triggerText = hasSelection ? `${selected.length} đã chọn` : 'Tất cả';
+  const isOpen = openDropdown === filterKey;
+
+  container.innerHTML = `
+    <div class="ms-trigger${isOpen ? ' open' : ''}${hasSelection ? ' has-selection' : ''}">${esc(triggerText)}</div>
+    <div class="ms-dropdown${isOpen ? ' open' : ''}">
+      <div class="ms-toggle-all">${hasSelection ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</div>
+      ${options.map(opt => `
+        <div class="ms-option">
+          <input type="checkbox" id="ms-${filterKey}-${opt}" ${selected.includes(opt) ? 'checked' : ''}>
+          <label for="ms-${filterKey}-${opt}" title="${esc(opt)}">${esc(opt)}</label>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  container.querySelector('.ms-trigger').addEventListener('click', () => {
+    if (openDropdown === filterKey) {
+      openDropdown = null;
+    } else {
+      openDropdown = filterKey;
+    }
+    rebuildDropdowns();
+  });
+
+  container.querySelector('.ms-toggle-all').addEventListener('click', () => {
+    if (hasSelection) {
+      filterState[filterKey] = [];
+    } else {
+      filterState[filterKey] = [...options];
+    }
+    currentPage = 0;
+    syncToUrl();
+    rebuildDropdowns();
+    refresh();
+  });
+
+  for (const opt of container.querySelectorAll('.ms-option')) {
+    const cb = opt.querySelector('input');
+    const val = cb.id.replace(`ms-${filterKey}-`, '');
+    opt.addEventListener('click', (e) => {
+      if (e.target === cb) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+    });
+    cb.addEventListener('change', () => {
+      if (cb.checked) {
+        if (!filterState[filterKey].includes(val)) filterState[filterKey].push(val);
+      } else {
+        filterState[filterKey] = filterState[filterKey].filter(v => v !== val);
+      }
+      currentPage = 0;
+      syncToUrl();
+      renderChips();
+      refresh();
+    });
+  }
+}
+
+let lastFacets = { sources: [], models: [], types: [] };
+
+function rebuildDropdowns() {
+  buildMultiSelect(document.getElementById('filter-source'), 'source', lastFacets.sources);
+  buildMultiSelect(document.getElementById('filter-model'), 'model', lastFacets.models);
+  buildMultiSelect(document.getElementById('filter-type'), 'type', lastFacets.types);
+  renderChips();
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  if (openDropdown && !e.target.closest('.multi-select')) {
+    openDropdown = null;
+    rebuildDropdowns();
+  }
+});
+
+// Active filter chips
+function renderChips() {
+  const el = document.getElementById('active-filters');
+  const chips = [];
+  const labels = { source: 'Nguồn', model: 'Model', type: 'Loại' };
+  for (const key of ['source', 'model', 'type']) {
+    for (const val of filterState[key]) {
+      chips.push(`<span class="filter-chip">${esc(labels[key])}: ${esc(val)}<button data-key="${key}" data-val="${esc(val)}">&times;</button></span>`);
+    }
+  }
+  if (filterState.range !== 'all') {
+    const rangeLabels = { '1h': '1 giờ', '6h': '6 giờ', '24h': '24 giờ', '7d': '7 ngày', '30d': '30 ngày' };
+    chips.push(`<span class="filter-chip">Thời gian: ${rangeLabels[filterState.range]}<button data-key="range" data-val="${filterState.range}">&times;</button></span>`);
+  }
+  if (chips.length) {
+    chips.push('<button class="clear-all">Xoá tất cả bộ lọc</button>');
+  }
+  el.innerHTML = chips.join('');
+
+  el.querySelectorAll('.filter-chip button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      const val = btn.dataset.val;
+      if (key === 'range') {
+        filterState.range = 'all';
+        updateTimeButtons();
+      } else {
+        filterState[key] = filterState[key].filter(v => v !== val);
+      }
+      currentPage = 0;
+      syncToUrl();
+      rebuildDropdowns();
+      refresh();
+    });
+  });
+
+  const clearBtn = el.querySelector('.clear-all');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      filterState.range = 'all';
+      filterState.source = [];
+      filterState.model = [];
+      filterState.type = [];
+      currentPage = 0;
+      syncToUrl();
+      updateTimeButtons();
+      rebuildDropdowns();
+      refresh();
+    });
+  }
+}
+
+// Sortable table headers
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = 'asc';
+    }
+    updateSortHeaders();
+    renderCurrentRecords();
+  });
+});
+
+function updateSortHeaders() {
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    const col = th.dataset.sort;
+    th.classList.toggle('sorted', col === sortCol);
+    th.querySelector('.sort-arrow').textContent = col === sortCol ? (sortDir === 'asc' ? '▲' : '▼') : '';
+  });
+}
+
+let currentRecords = [];
+
+function sortRecords(records) {
+  if (!sortCol) return records;
+  const sorted = [...records];
+  const numeric = ['tokens', 'costUsd'];
+  sorted.sort((a, b) => {
+    let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+    if (numeric.includes(sortCol)) {
+      va = Number(va) || 0; vb = Number(vb) || 0;
+      return sortDir === 'asc' ? va - vb : vb - va;
+    }
+    va = String(va); vb = String(vb);
+    const cmp = va.localeCompare(vb);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+function renderCurrentRecords() {
+  const rows = sortRecords(currentRecords);
+  document.getElementById('rows').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td>${esc(new Date(r.ts).toLocaleString())}</td>
+      <td><span class="pill">${esc(r.source)}</span></td>
+      <td>${esc(r.model)}</td>
+      <td>${esc(r.type)}</td>
+      <td class="n">${r.tokens ? fmt(r.tokens) : ''}</td>
+      <td class="n">${r.costUsd ? Number(r.costUsd).toFixed(4) : ''}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr>';
+}
+
+// Bar charts
 function bars(el, obj) {
   const entries = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
   if (!entries.length) { el.innerHTML = '<div class="empty">Chưa có dữ liệu</div>'; return; }
@@ -87,12 +445,43 @@ function bars(el, obj) {
     </div>`).join('');
 }
 
+// Pagination
+function renderPagination(total) {
+  const el = document.getElementById('pagination');
+  if (total <= PAGE_SIZE) { el.innerHTML = ''; return; }
+  const start = currentPage * PAGE_SIZE + 1;
+  const end = Math.min(start + PAGE_SIZE - 1, total);
+  const maxPage = Math.ceil(total / PAGE_SIZE) - 1;
+  el.innerHTML = `
+    <span>Hiển thị ${fmt(start)}-${fmt(end)} / ${fmt(total)} bản ghi</span>
+    <div class="page-btns">
+      <button id="pg-prev" ${currentPage <= 0 ? 'disabled' : ''}>&lt; Trước</button>
+      <button id="pg-next" ${currentPage >= maxPage ? 'disabled' : ''}>Sau &gt;</button>
+    </div>
+  `;
+  document.getElementById('pg-prev')?.addEventListener('click', () => { currentPage--; refresh(); });
+  document.getElementById('pg-next')?.addEventListener('click', () => { currentPage++; refresh(); });
+}
+
+// Main refresh
 async function refresh() {
   try {
-    const [summary, records] = await Promise.all([
-      fetch('/api/summary').then(r => r.json()),
-      fetch('/api/records?limit=50').then(r => r.json()),
+    const params = new URLSearchParams();
+    if (filterState.source.length) params.set('source', filterState.source.join(','));
+    if (filterState.model.length) params.set('model', filterState.model.join(','));
+    if (filterState.type.length) params.set('type', filterState.type.join(','));
+    if (filterState.range !== 'all' && DURATIONS[filterState.range]) {
+      params.set('from', new Date(Date.now() - DURATIONS[filterState.range]).toISOString());
+    }
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', String(currentPage * PAGE_SIZE));
+
+    const qs = params.toString();
+    const [summary, recordsRes] = await Promise.all([
+      fetch('/api/summary?' + qs).then(r => r.json()),
+      fetch('/api/records?' + qs).then(r => r.json()),
     ]);
+
     document.getElementById('k-tokens').textContent = fmt(summary.totals.tokens);
     document.getElementById('k-cost').textContent = '$' + Number(summary.totals.costUsd).toFixed(4);
     document.getElementById('k-records').textContent = fmt(summary.totals.records);
@@ -100,22 +489,29 @@ async function refresh() {
     bars(document.getElementById('by-type'), summary.byType);
     bars(document.getElementById('by-model'), summary.byModel);
 
-    const rows = records.slice().reverse();
-    document.getElementById('rows').innerHTML = rows.length ? rows.map(r => `
-      <tr>
-        <td>${esc(new Date(r.ts).toLocaleString())}</td>
-        <td><span class="pill">${esc(r.source)}</span></td>
-        <td>${esc(r.model)}</td>
-        <td>${esc(r.type)}</td>
-        <td class="n">${r.tokens ? fmt(r.tokens) : ''}</td>
-        <td class="n">${r.costUsd ? Number(r.costUsd).toFixed(4) : ''}</td>
-      </tr>`).join('') : '<tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr>';
+    if (summary.facets && !openDropdown) {
+      lastFacets = summary.facets;
+      rebuildDropdowns();
+    } else if (summary.facets) {
+      lastFacets = summary.facets;
+    }
+
+    currentRecords = recordsRes.records || [];
+    renderCurrentRecords();
+
+    const total = recordsRes.total || 0;
+    document.getElementById('record-count').textContent = total ? `(${fmt(total)} bản ghi)` : '';
+    renderPagination(total);
 
     document.getElementById('updated').textContent = new Date().toLocaleTimeString();
   } catch (e) {
     document.getElementById('updated').textContent = 'mất kết nối server';
   }
 }
+
+syncFromUrl();
+updateTimeButtons();
+rebuildDropdowns();
 refresh();
 setInterval(refresh, 5000);
 </script>
