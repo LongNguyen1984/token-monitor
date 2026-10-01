@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Token Monitor</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --fg: #1d1d1b; --muted: #6b6b66;
+    --line: #e4e4df; --accent: #c2571a; --accent2: #2f6f8f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --card: #1f1f1d; --fg: #ececea; --muted: #9a9a94;
+            --line: #2e2e2b; --accent: #e07a3f; --accent2: #5fa3c4; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .status { color: var(--muted); font-size: 12px; }
+  .status b { color: var(--accent2); font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 20px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .kpi .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  h2 { font-size: 13px; margin: 0 0 12px; color: var(--muted); font-weight: 600;
+       text-transform: uppercase; letter-spacing: .04em; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 80px; gap: 8px; align-items: center; margin: 6px 0; }
+  .bar-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { background: var(--line); height: 10px; border-radius: 5px; overflow: hidden; }
+  .bar-fill { background: var(--accent); height: 100%; border-radius: 5px; transition: width .4s; }
+  .bar-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .empty { color: var(--muted); font-style: italic; }
+  table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .table-wrap { overflow-x: auto; margin-top: 12px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px;
+          background: var(--line); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>AI Token Monitor</h1>
+    <div class="status">Cập nhật: <b id="updated">—</b> · tự làm mới mỗi 5s</div>
+  </header>
+
+  <section class="kpis">
+    <div class="card kpi"><div class="label">Tổng token</div><div class="value" id="k-tokens">0</div></div>
+    <div class="card kpi"><div class="label">Chi phí ước tính (USD)</div><div class="value" id="k-cost">$0</div></div>
+    <div class="card kpi"><div class="label">Số bản ghi</div><div class="value" id="k-records">0</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><h2>Theo nguồn</h2><div id="by-source"></div></div>
+    <div class="card"><h2>Theo loại token</h2><div id="by-type"></div></div>
+    <div class="card"><h2>Theo model</h2><div id="by-model"></div></div>
+  </section>
+
+  <section class="card table-wrap">
+    <h2>Bản ghi gần nhất</h2>
+    <table>
+      <thead><tr><th>Thời gian</th><th>Nguồn</th><th>Model</th><th>Loại</th><th class="n">Token</th><th class="n">USD</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const fmt = (n) => Number(n || 0).toLocaleString('en-US');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function bars(el, obj) {
+  const entries = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) { el.innerHTML = '<div class="empty">Chưa có dữ liệu</div>'; return; }
+  const max = entries[0][1] || 1;
+  el.innerHTML = entries.map(([k, v]) => `
+    <div class="bar-row">
+      <span class="name" title="${esc(k)}">${esc(k)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(v / max * 100).toFixed(1)}%"></div></div>
+      <span class="num">${fmt(v)}</span>
+    </div>`).join('');
+}
+
+async function refresh() {
+  try {
+    const [summary, records] = await Promise.all([
+      fetch('/api/summary').then(r => r.json()),
+      fetch('/api/records?limit=50').then(r => r.json()),
+    ]);
+    document.getElementById('k-tokens').textContent = fmt(summary.totals.tokens);
+    document.getElementById('k-cost').textContent = '$' + Number(summary.totals.costUsd).toFixed(4);
+    document.getElementById('k-records').textContent = fmt(summary.totals.records);
+    bars(document.getElementById('by-source'), summary.bySource);
+    bars(document.getElementById('by-type'), summary.byType);
+    bars(document.getElementById('by-model'), summary.byModel);
+
+    const rows = records.slice().reverse();
+    document.getElementById('rows').innerHTML = rows.length ? rows.map(r => `
+      <tr>
+        <td>${esc(new Date(r.ts).toLocaleString())}</td>
+        <td><span class="pill">${esc(r.source)}</span></td>
+        <td>${esc(r.model)}</td>
+        <td>${esc(r.type)}</td>
+        <td class="n">${r.tokens ? fmt(r.tokens) : ''}</td>
+        <td class="n">${r.costUsd ? Number(r.costUsd).toFixed(4) : ''}</td>
+      </tr>`).join('') : '<tr><td colspan="6" class="empty">Chưa có dữ liệu</td></tr>';
+
+    document.getElementById('updated').textContent = new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('updated').textContent = 'mất kết nối server';
+  }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

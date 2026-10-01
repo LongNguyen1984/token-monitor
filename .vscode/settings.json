@@ -1,0 +1,11 @@
+{
+  // GitHub Copilot Chat -> OpenTelemetry -> local token monitor.
+  // If Copilot doesn't pick these up at workspace level, copy them into your
+  // USER settings.json (Ctrl/Cmd+Shift+P -> "Preferences: Open User Settings (JSON)").
+  "github.copilot.chat.otel.enabled": true,
+  "github.copilot.chat.otel.exporterType": "otlp-http",
+  // 127.0.0.1 rather than localhost: avoids an IPv6 (::1) mismatch with the server.
+  "github.copilot.chat.otel.otlpEndpoint": "http://127.0.0.1:4318",
+  // Keep prompt/response text OUT of telemetry. Only token counts are needed.
+  "github.copilot.chat.otel.captureContent": false
+}
