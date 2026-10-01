@@ -253,25 +253,30 @@ function buildMultiSelect(container, filterKey, options) {
   const triggerText = hasSelection ? `${selected.length} đã chọn` : 'Tất cả';
   const isOpen = openDropdown === filterKey;
 
+  const optionsHtml = options.map(opt => `
+    <div class="ms-option">
+      <input type="checkbox" id="ms-${filterKey}-${opt}" ${selected.includes(opt) ? 'checked' : ''}>
+      <label for="ms-${filterKey}-${opt}" title="${esc(opt)}">${esc(opt)}</label>
+    </div>
+  `).join('');
+  console.log(`[filter] Generated ${optionsHtml.split('ms-option').length - 1} option elements for ${filterKey}`);
+
   container.innerHTML = `
     <div class="ms-trigger${isOpen ? ' open' : ''}${hasSelection ? ' has-selection' : ''}">${esc(triggerText)}</div>
     <div class="ms-dropdown${isOpen ? ' open' : ''}">
       <div class="ms-toggle-all">${hasSelection ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</div>
-      ${options.map(opt => `
-        <div class="ms-option">
-          <input type="checkbox" id="ms-${filterKey}-${opt}" ${selected.includes(opt) ? 'checked' : ''}>
-          <label for="ms-${filterKey}-${opt}" title="${esc(opt)}">${esc(opt)}</label>
-        </div>
-      `).join('')}
+      ${optionsHtml}
     </div>
   `;
 
   container.querySelector('.ms-trigger').addEventListener('click', () => {
+    console.log(`[filter] Trigger clicked for ${filterKey}, openDropdown was ${openDropdown}`);
     if (openDropdown === filterKey) {
       openDropdown = null;
     } else {
       openDropdown = filterKey;
     }
+    console.log(`[filter] openDropdown now ${openDropdown}`);
     rebuildDropdowns();
   });
 
@@ -287,15 +292,19 @@ function buildMultiSelect(container, filterKey, options) {
     refresh();
   });
 
-  for (const opt of container.querySelectorAll('.ms-option')) {
+  const optionElements = container.querySelectorAll('.ms-option');
+  console.log(`[filter] Found ${optionElements.length} .ms-option elements for ${filterKey}`);
+  for (const opt of optionElements) {
     const cb = opt.querySelector('input');
     const val = cb.id.replace(`ms-${filterKey}-`, '');
+    console.log(`[filter] Attaching listener to option: ${val}`);
     opt.addEventListener('click', (e) => {
       if (e.target === cb) return;
       cb.checked = !cb.checked;
       cb.dispatchEvent(new Event('change'));
     });
     cb.addEventListener('change', () => {
+      console.log(`[filter] Option changed: ${val} = ${cb.checked}`);
       if (cb.checked) {
         if (!filterState[filterKey].includes(val)) filterState[filterKey].push(val);
       } else {
