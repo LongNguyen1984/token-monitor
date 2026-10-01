@@ -489,11 +489,9 @@ async function refresh() {
     bars(document.getElementById('by-type'), summary.byType);
     bars(document.getElementById('by-model'), summary.byModel);
 
-    if (summary.facets && !openDropdown) {
+    if (summary.facets) {
       lastFacets = summary.facets;
-      rebuildDropdowns();
-    } else if (summary.facets) {
-      lastFacets = summary.facets;
+      if (!openDropdown) rebuildDropdowns();
     }
 
     currentRecords = recordsRes.records || [];
@@ -511,6 +509,7 @@ async function refresh() {
 
 syncFromUrl();
 updateTimeButtons();
+rebuildDropdowns();
 refresh();
 setInterval(refresh, 5000);
 </script>
